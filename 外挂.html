@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ACE 服务器控制面板 | 入侵协议</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none; /* 模拟更高级的UI感，防止选中文本 */
+        }
+
+        body {
+            min-height: 100vh;
+            background: radial-gradient(circle at 20% 30%, #0a0f1e, #03060c);
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        /* 主容器 + 卡片玻璃风格 */
+        .container {
+            width: 100%;
+            max-width: 580px;
+            background: rgba(12, 20, 30, 0.65);
+            backdrop-filter: blur(12px);
+            border-radius: 48px;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 255, 255, 0.1) inset;
+            overflow: hidden;
+            transition: all 0.3ease;
+        }
+
+        /* 页面通用面板 */
+        .page {
+            padding: 30px 24px 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* 卡网界面 */
+        .card-title {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #88f7ff, #3e9eff);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin-bottom: 12px;
+            letter-spacing: 2px;
+        }
+
+        .card-sub {
+            color: #8e9eae;
+            margin-bottom: 32px;
+            font-size: 0.85rem;
+            border-bottom: 1px dashed #2c3e4e;
+            padding-bottom: 10px;
+        }
+
+        .input-group {
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        .input-group input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1.5px solid #2c5a6e;
+            border-radius: 60px;
+            padding: 16px 24px;
+            font-size: 1.1rem;
+            color: #c0f2ff;
+            text-align: center;
+            letter-spacing: 2px;
+            font-weight: 500;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .input-group input:focus {
+            border-color: #0ef;
+            box-shadow: 0 0 12px rgba(0, 238, 255, 0.4);
+        }
+
+        .btn {
+            background: linear-gradient(95deg, #00a6c4, #0080b0);
+            border: none;
+            padding: 14px 28px;
+            border-radius: 60px;
+            font-weight: bold;
+            font-size: 1rem;
+            color: white;
+            width: 80%;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 5px 12px rgba(0, 160, 200, 0.3);
+            margin-top: 8px;
+        }
+
+        .btn:active {
+            transform: scale(0.96);
+        }
+
+        /* 悬浮窗 */
+        .floating-toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(18px);
+            border-left: 6px solid #0ef;
+            padding: 14px 28px;
+            border-radius: 60px;
+            color: #bbf5ff;
+            font-weight: 500;
+            font-size: 0.95rem;
+            letter-spacing: 1px;
+            z-index: 2000;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            transition: all 0.3s cubic-bezier(0.2, 1, 0.3, 1);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .floating-toast::before {
+            content: "⚠️";
+            font-size: 1.2rem;
+        }
+
+        /* 加载条区域 */
+        .load-area {
+            width: 100%;
+            margin: 30px 0;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 12px;
+            background: #1e2a32;
+            border-radius: 30px;
+            overflow: hidden;
+            box-shadow: inset 0 1px 3px #00000055;
+        }
+
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #0ef, #2f80ed, #0ef);
+            border-radius: 30px;
+            transition: width 0.08s linear;
+            box-shadow: 0 0 8px #0ef;
+        }
+
+        .load-text {
+            margin-top: 16px;
+            color: #b0e0ff;
+            font-family: monospace;
+            font-size: 1rem;
+            letter-spacing: 2px;
+        }
+
+        /* 入侵成功界面 */
+        .success-icon {
+            margin: 15px 0 20px;
+        }
+
+        .face-id-ring {
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, #1d7a46, #0a3b2a);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            box-shadow: 0 0 0 4px #4affb5, 0 0 0 8px rgba(74, 255, 181, 0.3);
+            animation: breathe 1.5s infinite;
+        }
+
+        .face-id-ring svg {
+            width: 60px;
+            height: 60px;
+            filter: drop-shadow(0 0 6px #b5ffd8);
+        }
+
+        @keyframes breathe {
+            0% { box-shadow: 0 0 0 4px #4affb5, 0 0 0 8px rgba(74, 255, 181, 0.2); transform: scale(1);}
+            100% { box-shadow: 0 0 0 6px #4affb5, 0 0 0 14px rgba(74, 255, 181, 0.4); transform: scale(1.02);}
+        }
+
+        .big-title {
+            font-size: 2.2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #FFD966, #4cd964);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin: 20px 0 8px;
+        }
+
+        .server-status {
+            background: #0f212e70;
+            padding: 8px 20px;
+            border-radius: 60px;
+            font-size: 0.9rem;
+            color: #7ef0ba;
+            margin-bottom: 32px;
+            backdrop-filter: blur(4px);
+        }
+
+        /* 功能网格 */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            width: 100%;
+            margin-top: 12px;
+        }
+
+        .feature-card {
+            background: rgba(20, 30, 45, 0.7);
+            backdrop-filter: blur(8px);
+            border-radius: 28px;
+            padding: 16px 8px;
+            border: 1px solid rgba(0, 200, 255, 0.3);
+            transition: 0.2s;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .feature-card.active {
+            border-color: #0ef;
+            background: rgba(0, 238, 255, 0.15);
+            box-shadow: 0 0 10px #0ef3;
+        }
+
+        .feature-name {
+            font-weight: 600;
+            color: #ddf4ff;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        .range-slider-container {
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: space-between;
+            font-size: 0.75rem;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            height: 4px;
+            -webkit-appearance: none;
+            background: #2c4a5e;
+            border-radius: 5px;
+        }
+
+        input[type="range"]:focus {
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #0ef;
+            cursor: pointer;
+            box-shadow: 0 0 4px cyan;
+        }
+
+        .range-value {
+            min-width: 45px;
+            color: #0ef;
+            font-weight: bold;
+        }
+
+        .info-note {
+            font-size: 0.7rem;
+            color: #5c7c8c;
+            margin-top: 24px;
+            text-align: center;
+        }
+
+        /* 响应式 */
+        @media (max-width: 500px) {
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="appRoot">
+    <!-- 页面1: 输入卡网 NB66 -->
+    <div id="pageCard" class="page">
+        <div class="card-title">⚡ KRNL 接入点 ⚡</div>
+        <div class="card-sub">验证授权卡网 · 安全节点</div>
+        <div class="input-group">
+            <input type="text" id="cardInput" placeholder="输入卡网 / 授权码" autocomplete="off" spellcheck="false">
+        </div>
+        <button class="btn" id="verifyBtn">验证并接入</button>
+        <div class="info-note" style="margin-top: 28px;">* 内部开发者通道需要特定密钥</div>
+    </div>
+
+    <!-- 页面2: 入侵ACE服务器 进度条界面 -->
+    <div id="pageLoading" class="page hidden">
+        <div style="margin-bottom: 20px;">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#0ef" stroke-width="1.2" fill="none"/>
+                <path d="M2 17L12 22L22 17" stroke="#0ef" stroke-width="1.2" fill="none"/>
+                <path d="M2 12L12 17L22 12" stroke="#0ef" stroke-width="1.2" fill="none"/>
+            </svg>
+        </div>
+        <h3 style="color:#caf0ff; margin-bottom: 24px;">⚙️ 安全渗透协议 ⚙️</h3>
+        <div class="load-area">
+            <div class="progress-bar-bg">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="load-text" id="loadTextDisplay">正在尝试入侵 ACE 服务器 ... 0%</div>
+        </div>
+        <div class="info-note">绕过防火墙 · 注入量子隧道</div>
+    </div>
+
+    <!-- 页面3: 入侵成功 + 功能面板 -->
+    <div id="pageSuccess" class="page hidden">
+        <div class="success-icon">
+            <div class="face-id-ring">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15h-2v-2h2v2zm0-4h-2V7h2v6zm4 4h-2v-2h2v2zm0-4h-2V7h2v6z" fill="#4affb5"/>
+                    <circle cx="12" cy="12" r="8" stroke="#2eff9e" stroke-width="1.2" fill="none" stroke-dasharray="2 2"/>
+                </svg>
+            </div>
+        </div>
+        <div class="big-title">入侵成功</div>
+        <div class="server-status">🔗 服务器连接正常 | 延迟 2ms</div>
+        
+        <div class="features-grid" id="featuresGrid">
+            <!-- 自瞄 -->
+            <div class="feature-card" data-feature="aim">
+                <div class="feature-name">🎯 自瞄</div>
+                <div style="font-size:12px; color:#6c9eb0;">精准锁定</div>
+            </div>
+            <!-- 断点子追 -->
+            <div class="feature-card" data-feature="disconnect">
+                <div class="feature-name">⚡ 断点子追</div>
+                <div style="font-size:12px; color:#6c9eb0;">强制追踪断裂点</div>
+            </div>
+            <!-- 硬件子追 -->
+            <div class="feature-card" data-feature="hardware">
+                <div class="feature-name">🖥️ 硬件子追</div>
+                <div style="font-size:12px; color:#6c9eb0;">Ring0级追踪</div>
+            </div>
+            <!-- 内透 -->
+            <div class="feature-card" data-feature="wallhack">
+                <div class="feature-name">👁️ 内透</div>
+                <div style="font-size:12px; color:#6c9eb0;">透视骨骼/物资</div>
+            </div>
+            <!-- 服装美化 -->
+            <div class="feature-card" data-feature="skin">
+                <div class="feature-name">👘 服装美化</div>
+                <div style="font-size:12px; color:#6c9eb0;">全角色皮肤</div>
+            </div>
+            <!-- 枪械美化 -->
+            <div class="feature-card" data-feature="weapon">
+                <div class="feature-name">🔫 枪械美化</div>
+                <div style="font-size:12px; color:#6c9eb0;">传说改模</div>
+            </div>
+            <!-- 范围追踪 + 滑块 -->
+            <div class="feature-card" data-feature="range" style="grid-column: span 2; display: block;">
+                <div class="feature-name">📡 范围追踪</div>
+                <div class="range-slider-container">
+                    <span style="font-size:12px;">范围强度</span>
+                    <input type="range" id="rangeSlider" min="1" max="500" value="120" step="1">
+                    <span id="rangeValueDisplay" class="range-value">120</span>
+                    <span style="font-size:11px;">Max 500</span>
+                </div>
+                <div style="font-size:12px; margin-top:6px; color:#92b9cd;">调节追踪半径/吸附距离</div>
+            </div>
+        </div>
+        <div class="info-note">* 激活功能将注入服务器模块（演示 UI）</div>
+    </div>
+</div>
+
+<script>
+    // ---------- 全局变量 ----------
+    let currentPage = 'card';    // card, loading, success
+    let progressInterval = null;
+    let fakeProgress = 0;
+
+    // DOM 元素
+    const pageCard = document.getElementById('pageCard');
+    const pageLoading = document.getElementById('pageLoading');
+    const pageSuccess = document.getElementById('pageSuccess');
+    const verifyBtn = document.getElementById('verifyBtn');
+    const cardInput = document.getElementById('cardInput');
+    const progressFill = document.getElementById('progressFill');
+    const loadTextDisplay = document.getElementById('loadTextDisplay');
+    const rangeSlider = document.getElementById('rangeSlider');
+    const rangeValueDisplay = document.getElementById('rangeValueDisplay');
+    
+    // 悬浮窗引用
+    let activeToast = null;
+    
+    // 展示悬浮窗函数 (自动消失)
+    function showFloatingMessage(message, duration = 2800) {
+        if (activeToast) {
+            activeToast.remove();
+            activeToast = null;
+        }
+        const toast = document.createElement('div');
+        toast.className = 'floating-toast';
+        toast.innerHTML = `<span>${message}</span>`;
+        document.body.appendChild(toast);
+        activeToast = toast;
+        setTimeout(() => {
+            if (activeToast === toast) {
+                toast.remove();
+                if (activeToast === toast) activeToast = null;
+            }
+        }, duration);
+    }
+    
+    // 切换页面
+    function setPage(pageId) {
+        pageCard.classList.add('hidden');
+        pageLoading.classList.add('hidden');
+        pageSuccess.classList.add('hidden');
+        if (pageId === 'card') pageCard.classList.remove('hidden');
+        else if (pageId === 'loading') pageLoading.classList.remove('hidden');
+        else if (pageId === 'success') pageSuccess.classList.remove('hidden');
+        currentPage = pageId;
+    }
+    
+    // 模拟加载进度 (入侵ACE)
+    function startLoadingProgress(onComplete) {
+        if (progressInterval) clearInterval(progressInterval);
+        fakeProgress = 0;
+        progressFill.style.width = '0%';
+        loadTextDisplay.innerText = '正在尝试入侵 ACE 服务器 ... 0%';
+        
+        const interval = setInterval(() => {
+            if (fakeProgress >= 100) {
+                clearInterval(interval);
+                progressInterval = null;
+                loadTextDisplay.innerText = '入侵完成 100%  · 解锁控制权';
+                if (onComplete) setTimeout(onComplete, 150);
+                return;
+            }
+            // 动态速度: 前期稍快，接近100稍微减速模拟真实感
+            let increment = 0;
+            if (fakeProgress < 40) increment = 3 + Math.random() * 2;
+            else if (fakeProgress < 75) increment = 2 + Math.random() * 2;
+            else increment = 1 + Math.random() * 1.5;
+            fakeProgress = Math.min(fakeProgress + increment, 100);
+            const percent = Math.floor(fakeProgress);
+            progressFill.style.width = percent + '%';
+            loadTextDisplay.innerText = `正在尝试入侵 ACE 服务器 ... ${percent}%`;
+        }, 80);
+        progressInterval = interval;
+    }
+    
+    // 停止所有进行中的加载，确保安全
+    function killLoadingTimer() {
+        if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = null;
+        }
+    }
+    
+    // 验证卡网逻辑 (NB66 不区分大小写)
+    function verifyAccessCode(code) {
+        if (!code) return false;
+        const trimmed = code.trim();
+        return trimmed.toUpperCase() === 'NB66';
+    }
+    
+    // 处理验证按钮点击
+    function handleVerification() {
+        const inputVal = cardInput.value;
+        const isValid = verifyAccessCode(inputVal);
+        if (!isValid) {
+            // 错误提示，没有悬浮窗，用原生alert？但为了风格我们可以轻提示，但使用悬浮窗更优雅
+            showFloatingMessage('❌ 卡网验证失败 | 无效授权码', 2000);
+            // 震动输入框效果
+            cardInput.style.borderColor = '#ff5e7c';
+            setTimeout(() => { cardInput.style.borderColor = '#2c5a6e'; }, 800);
+            return;
+        }
+        
+        // 验证成功：先弹出开发者悬浮窗 (检测到开发者用户，自动屏蔽)
+        showFloatingMessage('检测到开发者用户 · 已为你自动屏蔽反作弊', 3000);
+        
+        // 微小延迟后进入加载界面
+        setTimeout(() => {
+            // 切换到加载页面
+            setPage('loading');
+            // 开始加载条模拟入侵ACE
+            startLoadingProgress(() => {
+                // 加载完毕 -> 跳转到成功界面(入侵成功 + 功能)
+                killLoadingTimer();
+                setPage('success');
+                // 附加一点小特效: 可以在成功时再弹一个无伤大雅的悬浮提醒(可选)
+                // 满足需求: 已经展示"入侵成功"UI 和 类似面容ID成功画面
+                // 顺便预加载所有功能交互
+                initFeatureEvents();
+            });
+        }, 200);
+    }
+    
+    // 功能卡片交互样式 + 范围追踪数值联动
+    function initFeatureEvents() {
+        // 获取所有卡片 (除了包含range滑块特殊处理)
+        const cards = document.querySelectorAll('.feature-card');
+        cards.forEach(card => {
+            // 移除旧监听避免重复绑定
+            card.removeEventListener('click', card._clickHandler);
+            const handler = (e) => {
+                // 防止点击range滑块时触发卡片激活样式 (如果点击的是input slider区域，不切换样式)
+                if (e.target.closest('.range-slider-container')) {
+                    // 范围追踪内部滑块操作不影响卡片高亮
+                    return;
+                }
+                // 切换激活样式 (模拟功能开启视觉效果)
+                if (card.classList.contains('active')) {
+                    card.classList.remove('active');
+                    // 可选: 显示悬浮提示关闭
+                    showFloatingMessage(`⚠️ 已停用: ${card.querySelector('.feature-name')?.innerText || '功能'}`, 1000);
+                } else {
+                    card.classList.add('active');
+                    showFloatingMessage(`✨ 已激活: ${card.querySelector('.feature-name')?.innerText || '功能'} 注入成功`, 1200);
+                }
+            };
+            card._clickHandler = handler;
+            card.addEventListener('click', handler);
+        });
+        
+        // 范围追踪滑块独立逻辑(功能激活状态但用滑块数值表示大小)
+        if (rangeSlider) {
+            rangeSlider.addEventListener('input', (e) => {
+                const val = e.target.value;
+                rangeValueDisplay.innerText = val;
+                // 显示悬浮提示当前范围值 (可选)
+                // 为了增强体验，显示一个小悬浮 (但不是频繁弹窗，用轻提示或直接显示在卡片上)
+                // 可以动态改变卡片的高亮风格，表示范围生效，但没必要每次弹窗，用低调
+                // 但是为了展示调节大小功能最大500，显示一下轻反馈
+                const rangeCard = document.querySelector('.feature-card[data-feature="range"]');
+                if (rangeCard && !rangeCard.classList.contains('active')) {
+                    rangeCard.classList.add('active');
+                }
+                // 显示悬浮但不频繁，当滑块停止移动时可以通过防抖，为了UI干净，用最后显示一次
+                if (window.rangeToastTimer) clearTimeout(window.rangeToastTimer);
+                window.rangeToastTimer = setTimeout(() => {
+                    showFloatingMessage(`📡 范围追踪强度调整为 ${val} (max 500)`, 1000);
+                }, 150);
+            });
+            // 确保初始值显示
+            if (rangeSlider.value) rangeValueDisplay.innerText = rangeSlider.value;
+        }
+    }
+    
+    // 额外监听range滑块默认交互
+    function bindRangeDefault() {
+        if (rangeSlider) {
+            const initialVal = rangeSlider.value;
+            if (rangeValueDisplay) rangeValueDisplay.innerText = initialVal;
+            rangeSlider.addEventListener('change', () => {});
+        }
+    }
+    
+    // 重置状态(理论上首次加载只需要事件,但用户输错重新尝试也要确保没有进度条残留)
+    function resetToCardClean() {
+        killLoadingTimer();
+        if (currentPage !== 'card') {
+            setPage('card');
+        }
+        cardInput.value = '';
+        // 清空任何进行时的进度条残留
+    }
+    
+    // 增强: 如果已经在成功界面刷新或者通过其他方式，但是在验证成功前确保所有状态
+    verifyBtn.addEventListener('click', () => {
+        handleVerification();
+    });
+    
+    // 支持回车键
+    cardInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleVerification();
+        }
+    });
+    
+    // 预置稍微美化: 初始化范围控制展示
+    bindRangeDefault();
+    
+    // 额外在加载完成前防止重复进入, 由于悬浮窗逻辑已经足够, 确保所有卡片在success加载后才被绑定
+    // 但是成功页面初始化时由于dom已经存在，先设置空监听防止未初始化就交互，但initFeatureEvents会在进入成功页面时调用
+    // 同时避免因为快速切换导致进度条双重
+    // 额外万一用户从成功页意外重启？无刷新情况下不会重新验证，如果需要重新卡密可以暴露? 但需求无返回按钮，按常规刷新页面。
+    // 添加辅助: 禁止在加载中再次验证
+    let verifyingLock = false;
+    const originalHandle = handleVerification;
+    window.handleVerification = function() {
+        if (verifyingLock) return;
+        if (currentPage === 'loading') {
+            showFloatingMessage('系统入侵进行中，请稍后...', 1200);
+            return;
+        }
+        verifyingLock = true;
+        originalHandle();
+        setTimeout(() => { verifyingLock = false; }, 800);
+    }.bind(this);
+    verifyBtn.onclick = () => window.handleVerification();
+    cardInput.onkeypress = (e) => { if(e.key === 'Enter') window.handleVerification(); };
+    
+    // 确保初始化启动页面为卡网 (默认)
+    setPage('card');
+    // 额外优雅处理悬浮窗不被覆盖
+    // 增加一个小的console说明
+    console.log('ACE 模拟面板已启动 | 卡网: NB66');
+    
+    // 美化按钮波纹(可选的装饰)
+    const style = document.createElement('style');
+    style.textContent = `
+        .btn:hover {
+            background: linear-gradient(95deg, #0bc2e0, #0095c8);
+            transform: scale(1.02);
+            box-shadow: 0 8px 20px rgba(0,190,230,0.5);
+        }
+        .feature-card:hover {
+            transform: translateY(-2px);
+            background: rgba(30, 55, 80, 0.8);
+            border-color: #0ef;
+        }
+    `;
+    document.head.appendChild(style);
+</script>
+</body>
+</html>
